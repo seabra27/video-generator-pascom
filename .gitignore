@@ -1,0 +1,23 @@
+# Segredos — nunca versionar
+.env
+.streamlit/secrets.toml
+
+# Ambiente virtual
+venv/
+__pycache__/
+*.pyc
+
+# Saídas geradas (áudio de exemplo, imagens, vídeos) — pesadas e não pertencem ao git
+output/*
+!output/.gitkeep
+input_examples/*
+!input_examples/.gitkeep
+
+# Streamlit
+.streamlit/config.toml.bak
+
+# Editores / SO
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db

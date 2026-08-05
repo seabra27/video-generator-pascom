@@ -1,0 +1,25 @@
+# requirements.txt — Pipeline de Vídeo do Evangelho (Pascom)
+#
+# As dependências estão organizadas por fase. Cada fase adiciona seus pacotes
+# quando o módulo correspondente é implementado — não instale tudo de uma vez
+# sem necessidade, para facilitar o diagnóstico de problemas por fase.
+
+# --- Base (Fase 1) ---
+python-dotenv==1.0.1
+
+# --- Fase 2: Transcrição local (faster-whisper) ---
+# Requer também o ffmpeg instalado no SISTEMA (não só via pip) — ver README.
+# faster-whisper==1.0.3
+
+# --- Fase 3: Segmentação + prompt de cena (Anthropic API) ---
+# anthropic==0.39.0
+
+# --- Fase 4: Geração de imagem (fal.ai) ---
+# fal-client==0.5.0
+
+# --- Fase 5: Montagem de vídeo (FFmpeg/MoviePy) ---
+# moviepy==1.0.3
+# pillow==10.4.0
+
+# --- Fase 6: App interativo ---
+# streamlit==1.39.0
