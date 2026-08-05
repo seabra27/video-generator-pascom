@@ -9,7 +9,7 @@ python-dotenv==1.0.1
 
 # --- Fase 2: Transcrição local (faster-whisper) ---
 # Requer também o ffmpeg instalado no SISTEMA (não só via pip) — ver README.
-# faster-whisper==1.0.3
+faster-whisper==1.2.1
 
 # --- Fase 3: Segmentação + prompt de cena (Anthropic API) ---
 # anthropic==0.39.0
