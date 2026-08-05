@@ -5,8 +5,9 @@ Não depende de nenhuma chave de API — o modelo roda inteiramente na máquina.
 Função pura: recebe o caminho de um áudio e devolve um dicionário com o
 texto e os timestamps por segmento (e, opcionalmente, por palavra).
 
-Formatos aceitos: .opus, .ogg, .m4a, .mp3, .wav (qualquer formato que o
-PyAV/FFmpeg conheça, na prática). O faster-whisper decodifica o áudio via
+Formatos aceitos: .opus, .ogg, .m4a, .mp3, .wav, .mov, .mp4 (qualquer formato
+que o PyAV/FFmpeg conheça, na prática — inclusive vídeos, dos quais só a
+trilha de áudio é extraída). O faster-whisper decodifica o áudio via
 PyAV, que já embute as bibliotecas do FFmpeg — não é necessário ffmpeg no
 sistema só para esta etapa. Ainda assim, o ffmpeg do sistema é exigido pela
 Fase 5 (montagem do vídeo), então o setup do projeto já garante que ele
@@ -27,7 +28,7 @@ if not logger.handlers:
     logger.addHandler(handler)
     logger.setLevel(logging.INFO)
 
-FORMATOS_SUPORTADOS = {".opus", ".ogg", ".m4a", ".mp3", ".wav"}
+FORMATOS_SUPORTADOS = {".opus", ".ogg", ".m4a", ".mp3", ".wav", ".mov", ".mp4"}
 
 # Cache do modelo em memória: recarregar o modelo a cada chamada seria lento
 # (alguns segundos) e desnecessário quando várias transcrições ocorrem na
