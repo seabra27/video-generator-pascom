@@ -21,3 +21,6 @@ input_examples/*
 .idea/
 .DS_Store
 Thumbs.db
+
+# Estado local do Claude Code (não é parte do projeto)
+.claude/
