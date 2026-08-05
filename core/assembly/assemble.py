@@ -9,9 +9,16 @@ imagem já salvos em disco) e escreve o vídeo final em output_path.
 Não precisa de nenhuma chave de API — roda 100% local via FFmpeg/MoviePy.
 Precisa do ffmpeg instalado no sistema (ver README — Fase 2).
 
-Versão desta fase: Ken Burns simples, uma imagem por bloco (zoom lento
-centralizado). Cross-fade entre múltiplas imagens por bloco e parallax em
-camadas vêm depois, só depois de validar esta versão ponta a ponta.
+Duas funções disponíveis:
+- `montar_video_simples()`: Ken Burns simples, uma imagem por bloco (versão
+  inicial, mantida pra referência/testes rápidos).
+- `montar_video()`: versão completa — várias imagens por bloco com
+  cross-fade suave entre elas, ainda com Ken Burns em cada uma.
+
+Parallax em camadas (fundo/primeiro plano) não foi implementado: as imagens
+geradas são flats (sem separação de profundidade), então qualquer parallax
+seria uma aproximação artificial — ficou como decisão em aberto em vez de
+implementar algo sem validar com o usuário primeiro.
 """
 
 import logging
@@ -36,6 +43,7 @@ RESOLUCAO_PADRAO = (1920, 1080)  # 16:9
 ZOOM_FINAL_PADRAO = 1.15  # a imagem termina 15% mais "zoomada" que no início
 FPS_PADRAO = 24
 PRESET_ENCODE_PADRAO = "veryfast"  # velocidade de encode do x264; "medium" (padrão do ffmpeg) é bem mais lento
+DURACAO_CROSSFADE_PADRAO = 1.0  # segundos de transição entre imagens do mesmo bloco
 
 
 def _extrair_audio_limpo(caminho_original: str) -> str:
@@ -78,17 +86,16 @@ def _carregar_imagem_cover(caminho_imagem: str, resolucao: tuple[int, int]) -> n
     return np.array(img)
 
 
-def _clip_ken_burns(caminho_imagem: str, duracao: float, resolucao: tuple[int, int], zoom_final: float) -> VideoClip:
+def _frame_ken_burns(imagem_base: Image.Image, progresso: float, resolucao: tuple[int, int], zoom_final: float) -> np.ndarray:
     """
-    Devolve um clipe com zoom lento e centralizado sobre a imagem, cortado
-    para o tamanho de saída (resolucao).
+    Devolve o frame (array numpy) de uma imagem com zoom centralizado, no
+    ponto `progresso` (0.0 = início, 1.0 = fim) do zoom.
 
-    Implementado como uma função de frame customizada (em vez de encadear
-    os efeitos `.resized()` + `.cropped()`/`CompositeVideoClip` do MoviePy)
-    por dois motivos:
-    1. Velocidade: o `CompositeVideoClip` (pensado pra sobrepor vários
-       clipes) é ~2.6x mais lento aqui do que simplesmente recortar a
-       imagem já redimensionada.
+    Feito com PIL puro (sem passar pelos efeitos do MoviePy) por dois
+    motivos:
+    1. Velocidade: o `CompositeVideoClip` do MoviePy (pensado pra sobrepor
+       vários clipes) é ~2.6x mais lento aqui do que simplesmente recortar
+       a imagem já redimensionada.
     2. Corretude: o `.cropped()` do MoviePy calcula a janela de corte UMA
        VEZ (usando `clip.w`/`clip.h`, que refletem o tamanho ANTES do
        zoom), mas a imagem cresce a cada frame — isso faz o corte derivar
@@ -97,21 +104,79 @@ def _clip_ken_burns(caminho_imagem: str, duracao: float, resolucao: tuple[int, i
        imagem naquele instante) evita esse problema.
     """
     largura_saida, altura_saida = resolucao
+    escala = 1 + (zoom_final - 1) * progresso
+    nova_largura = round(largura_saida * escala)
+    nova_altura = round(altura_saida * escala)
+    imagem_grande = imagem_base.resize((nova_largura, nova_altura), Image.Resampling.LANCZOS)
+    esquerda = (nova_largura - largura_saida) // 2
+    topo = (nova_altura - altura_saida) // 2
+    imagem_cortada = imagem_grande.crop((esquerda, topo, esquerda + largura_saida, topo + altura_saida))
+    return np.array(imagem_cortada)
+
+
+def _clip_ken_burns(caminho_imagem: str, duracao: float, resolucao: tuple[int, int], zoom_final: float) -> VideoClip:
+    """Devolve um clipe com zoom lento e centralizado sobre UMA imagem, cortado para o tamanho de saída."""
     array_base = _carregar_imagem_cover(caminho_imagem, resolucao)
     imagem_base = Image.fromarray(array_base)
 
     def frame_no_tempo(t):
         progresso = t / duracao if duracao > 0 else 0
-        escala = 1 + (zoom_final - 1) * progresso
-        nova_largura = round(largura_saida * escala)
-        nova_altura = round(altura_saida * escala)
-        imagem_grande = imagem_base.resize((nova_largura, nova_altura), Image.Resampling.LANCZOS)
-        esquerda = (nova_largura - largura_saida) // 2
-        topo = (nova_altura - altura_saida) // 2
-        imagem_cortada = imagem_grande.crop((esquerda, topo, esquerda + largura_saida, topo + altura_saida))
-        return np.array(imagem_cortada)
+        return _frame_ken_burns(imagem_base, progresso, resolucao, zoom_final)
 
     return VideoClip(frame_function=frame_no_tempo, duration=duracao)
+
+
+def _clip_bloco_multi_imagem(
+    imagens: list[str],
+    duracao: float,
+    resolucao: tuple[int, int],
+    zoom_final: float,
+    duracao_crossfade: float,
+) -> VideoClip:
+    """
+    Devolve o clipe de um bloco com VÁRIAS imagens: divide a duração do
+    bloco em fatias iguais (uma por imagem), aplica Ken Burns em cada uma,
+    e faz cross-fade suave na transição entre imagens consecutivas.
+    """
+    if len(imagens) == 1:
+        return _clip_ken_burns(imagens[0], duracao, resolucao, zoom_final)
+
+    n = len(imagens)
+    fatia = duracao / n
+    # nunca deixa o cross-fade maior que a fatia (senão a transição "vaza" pra fora dela)
+    duracao_crossfade = min(duracao_crossfade, fatia * 0.4)
+
+    bases = [Image.fromarray(_carregar_imagem_cover(caminho, resolucao)) for caminho in imagens]
+
+    def frame_no_tempo(t):
+        i = min(int(t // fatia), n - 1)
+        t_local = t - i * fatia
+        progresso = t_local / fatia if fatia > 0 else 0
+        frame_atual = _frame_ken_burns(bases[i], progresso, resolucao, zoom_final).astype(np.float32)
+
+        # perto do fim da fatia (e não é a última imagem): mistura com o início da próxima
+        if i < n - 1 and t_local > fatia - duracao_crossfade:
+            peso = (t_local - (fatia - duracao_crossfade)) / duracao_crossfade
+            frame_proximo = _frame_ken_burns(bases[i + 1], 0.0, resolucao, zoom_final).astype(np.float32)
+            frame_atual = frame_atual * (1 - peso) + frame_proximo * peso
+
+        return frame_atual.astype(np.uint8)
+
+    return VideoClip(frame_function=frame_no_tempo, duration=duracao)
+
+
+def _escrever_video(video, output_path: str, fps: int) -> None:
+    destino = Path(output_path)
+    destino.parent.mkdir(parents=True, exist_ok=True)
+    video.write_videofile(
+        str(destino),
+        fps=fps,
+        codec="libx264",
+        audio_codec="aac",
+        preset=PRESET_ENCODE_PADRAO,
+        threads=os.cpu_count(),
+        logger=None,
+    )
 
 
 def montar_video_simples(
@@ -129,7 +194,8 @@ def montar_video_simples(
 
     Cada bloco em `blocos` precisa ter: "inicio" (float, segundos),
     "fim" (float, segundos) e "imagens" (list[str], caminhos de arquivo —
-    usamos só a primeira nesta versão simples).
+    usamos só a primeira nesta versão simples). Ver `montar_video()` pra
+    versão com várias imagens por bloco e cross-fade entre elas.
     """
     if not blocos:
         raise ValueError("Lista de blocos vazia — rode a segmentação antes da montagem.")
@@ -164,21 +230,66 @@ def montar_video_simples(
     audio_sincronizado = concatenate_audioclips(clipes_audio)
     video = video.with_audio(audio_sincronizado)
 
-    destino = Path(output_path)
-    destino.parent.mkdir(parents=True, exist_ok=True)
-    video.write_videofile(
-        str(destino),
-        fps=fps,
-        codec="libx264",
-        audio_codec="aac",
-        preset=PRESET_ENCODE_PADRAO,
-        threads=os.cpu_count(),
-        logger=None,
-    )
-
+    _escrever_video(video, output_path, fps)
     logger.info(
         "Vídeo montado em %.1fs — duração final %.1fs, salvo em '%s'.",
         time.time() - inicio_processo,
         video.duration,
-        destino,
+        output_path,
+    )
+
+
+def montar_video(
+    audio_path: str,
+    blocos: list[dict],
+    output_path: str,
+    resolucao: tuple[int, int] = RESOLUCAO_PADRAO,
+    zoom_final: float = ZOOM_FINAL_PADRAO,
+    duracao_crossfade: float = DURACAO_CROSSFADE_PADRAO,
+    fps: int = FPS_PADRAO,
+) -> None:
+    """
+    Monta o vídeo completo: para cada bloco, divide sua duração entre TODAS
+    as imagens geradas pra ele (Ken Burns em cada uma), com cross-fade
+    suave na transição entre imagens do mesmo bloco. Sincronizado com o
+    áudio original, usando os timestamps reais de cada bloco.
+
+    Cada bloco em `blocos` precisa ter: "inicio", "fim" e "imagens"
+    (list[str] — pode ter 1 ou mais caminhos; com 2-3 fica melhor,
+    conforme o critério de qualidade do projeto).
+    """
+    if not blocos:
+        raise ValueError("Lista de blocos vazia — rode a segmentação antes da montagem.")
+
+    logger.info("Iniciando montagem do vídeo (%d blocos, resolução %dx%d)...", len(blocos), *resolucao)
+    inicio_processo = time.time()
+
+    audio_limpo = _extrair_audio_limpo(audio_path)
+    audio = AudioFileClip(audio_limpo)
+
+    clipes_video = []
+    clipes_audio = []
+    for i, bloco in enumerate(blocos):
+        imagens = bloco.get("imagens") or []
+        if not imagens:
+            raise ValueError(f"Bloco {i} não tem nenhuma imagem gerada.")
+
+        duracao = bloco["fim"] - bloco["inicio"]
+        if duracao <= 0:
+            raise ValueError(f"Bloco {i} tem duração inválida ({duracao}s).")
+
+        clipes_video.append(_clip_bloco_multi_imagem(imagens, duracao, resolucao, zoom_final, duracao_crossfade))
+        clipes_audio.append(audio.subclipped(bloco["inicio"], bloco["fim"]))
+        logger.info("Bloco %d/%d preparado (%.1fs, %d imagem(ns)).", i + 1, len(blocos), duracao, len(imagens))
+
+    video = concatenate_videoclips(clipes_video, method="chain")
+    audio_sincronizado = concatenate_audioclips(clipes_audio)
+    video = video.with_audio(audio_sincronizado)
+
+    _escrever_video(video, output_path, fps)
+    logger.info(
+        "Vídeo montado em %.1fs — duração final %.1fs, salvo em '%s'.",
+        time.time() - inicio_processo,
+        video.duration,
+        output_path,
     )
