@@ -13,7 +13,7 @@ sincronizadas.
 - [x] Fase 1 — Setup do projeto
 - [x] Fase 2 — Transcrição local (faster-whisper)
 - [x] Fase 3 — Segmentação + prompt de cena (Google Gemini, tier gratuito)
-- [ ] Fase 4 — Geração de imagem (fal.ai)
+- [x] Fase 4 — Geração de imagem (Cloudflare Workers AI / Flux, tier gratuito)
 - [ ] Fase 5 — Montagem de vídeo (FFmpeg/MoviePy)
 - [ ] Fase 6 — App interativo (Streamlit)
 - [ ] Fase 7 — README final
@@ -24,7 +24,7 @@ sincronizadas.
 core/               → lógica pura (sem dependência de interface)
 ├── transcription/      → Whisper local, sem chave de API
 ├── segmentation/        → LLM (Google Gemini) → blocos temáticos + prompt de imagem
-├── image_generation/    → fal.ai/Flux → imagens por bloco
+├── image_generation/    → Cloudflare Workers AI (Flux) → imagens por bloco
 └── assembly/             → FFmpeg/MoviePy → Ken Burns/parallax + cross-fade
 
 app/                → interface Streamlit, orquestra core/
@@ -68,11 +68,25 @@ volume de uso deste projeto (poucas chamadas por vídeo, uma vez por semana).
 Se a cota gratuita for excedida, o app mostra uma mensagem clara pedindo pra
 aguardar alguns minutos.
 
-### fal.ai (Fase 4 — geração de imagem)
-1. Acesse https://fal.ai e crie uma conta.
-2. No dashboard, vá na seção de chaves de API e gere uma nova chave.
-3. Configure o billing pay-as-you-go.
-4. Cole o valor gerado em `FAL_KEY` no arquivo `.env`.
+### Cloudflare Workers AI (Fase 4 — geração de imagem)
+Trocamos o fal.ai (proposta original) pelo Cloudflare Workers AI porque essa
+etapa tem custo real e o projeto não tem orçamento — o tier gratuito do
+Cloudflare (10.000 "neurons"/dia, sem cartão) dá ~230 imagens grátis por dia
+usando o mesmo modelo Flux (Flux 1 Schnell) previsto originalmente.
+1. Acesse https://dash.cloudflare.com/sign-up e crie uma conta.
+2. No painel, vá em **AI** → **Workers AI**.
+3. Anote o **Account ID** (barra lateral direita do dashboard).
+4. Vá em **My Profile** → **API Tokens** → **Create Token**, use o template
+   "Workers AI", e copie o token gerado.
+5. Cole os dois valores no `.env`: `CLOUDFLARE_API_TOKEN` e
+   `CLOUDFLARE_ACCOUNT_ID`.
+
+> Nota de qualidade: o Flux 1 Schnell é a variante rápida do Flux (a mesma
+> família usada por serviços pagos como o fal.ai), então às vezes gera rostos
+> um pouco mais realistas do que o guia de estilo pede, mesmo com a instrução
+> "sem fotorrealismo" no prompt. Isso é uma limitação do modelo rápido/grátis,
+> não do código — a Fase 6 (app) tem botão de "regenerar cena" para escolher
+> a melhor variação entre as geradas.
 
 Essas instruções serão repetidas dentro do app quando a fase correspondente
 for implementada.

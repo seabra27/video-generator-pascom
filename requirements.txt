@@ -14,8 +14,8 @@ faster-whisper==1.2.1
 # --- Fase 3: Segmentação + prompt de cena (Google Gemini, tier gratuito) ---
 google-genai==2.16.0
 
-# --- Fase 4: Geração de imagem (fal.ai) ---
-# fal-client==0.5.0
+# --- Fase 4: Geração de imagem (Cloudflare Workers AI / Flux, tier gratuito) ---
+requests==2.34.2
 
 # --- Fase 5: Montagem de vídeo (FFmpeg/MoviePy) ---
 # moviepy==1.0.3
