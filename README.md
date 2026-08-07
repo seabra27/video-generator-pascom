@@ -4,9 +4,24 @@ Projeto interno da Pascom (Basílica Nossa Senhora de Lourdes, Vila Isabel, RJ) 
 transformar o áudio do Evangelho dominical em um vídeo com imagens animadas
 sincronizadas.
 
-> Este README está em construção. A versão final (Fase 7) vai documentar como
-> abrir o app pela interface Streamlit, sem exigir uso de terminal por quem
-> não é da equipe técnica.
+## Como usar (sem terminal)
+
+1. Dê **duplo-clique** no arquivo **`Abrir Video do Evangelho.bat`**, na
+   pasta do projeto.
+2. Uma janela preta vai abrir e, depois de alguns segundos, uma aba do
+   navegador abre sozinha com o programa. **Não feche a janela preta**
+   enquanto estiver usando — é ela que mantém o programa rodando.
+3. Siga os passos na tela: enviar o áudio, transcrever, dividir em blocos,
+   gerar/escolher as imagens de cada bloco e montar o vídeo final. Cada
+   passo só aparece depois que o anterior termina.
+4. No fim, clique em **⬇ Baixar vídeo** para salvar o `.mp4` pronto.
+5. Para encerrar, feche a janela preta (ou a aba do navegador — mas a
+   janela preta é o que realmente para o programa).
+
+Se aparecer uma mensagem de erro na tela (chave de API ausente, cota
+esgotada, etc.), ela já vem com instruções de como resolver — normalmente é
+algo pra equipe técnica revisar no arquivo `.env` (ver seção "Chaves de
+API" abaixo).
 
 ## Status do projeto
 
@@ -16,7 +31,7 @@ sincronizadas.
 - [x] Fase 4 — Geração de imagem (Cloudflare Workers AI / Flux, tier gratuito)
 - [x] Fase 5 — Montagem de vídeo (FFmpeg/MoviePy)
 - [x] Fase 6 — App interativo (Streamlit)
-- [ ] Fase 7 — README final
+- [x] Fase 7 — README final
 
 ## Estrutura
 
@@ -30,6 +45,9 @@ core/               → lógica pura (sem dependência de interface)
 app/main.py         → interface Streamlit (passo a passo), orquestra core/
 output/             → vídeos finais (.mp4)
 input_examples/     → áudios de exemplo para teste isolado de cada fase
+
+"Abrir Video do Evangelho.bat" → atalho pra quem não usa terminal (ver
+                                  "Como usar" acima)
 ```
 
 > Nota: os módulos de `core/` usam nomes de pasta válidos como pacote Python
@@ -51,18 +69,14 @@ py -3.12 -m venv venv
 O arquivo `.env` (copiado de `.env.example`) guarda as chaves de API. Veja a
 seção de chaves abaixo antes das Fases 3 e 4.
 
-## Como rodar o app
+## Como rodar o app manualmente (dev)
+
+O `Abrir Video do Evangelho.bat` (seção "Como usar" acima) é só um atalho
+para este comando:
 
 ```powershell
 ./venv/Scripts/streamlit run app/main.py
 ```
-
-Abre automaticamente no navegador (http://localhost:8501). O app guia o
-processo em 4 passos — enviar o áudio, transcrever, dividir em blocos,
-gerar/escolher as imagens de cada bloco e montar o vídeo final — e cada
-passo só aparece depois que o anterior termina. Erros de chave de API
-ausente/inválida ou cota esgotada aparecem na tela, com instruções de como
-resolver, sem precisar abrir o terminal.
 
 ## Chaves de API
 
