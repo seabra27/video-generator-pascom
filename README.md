@@ -33,6 +33,30 @@ API" abaixo).
 - [x] Fase 6 — App interativo (Streamlit)
 - [x] Fase 7 — README final
 
+## Fluxo de branches (esteira DevOps)
+
+A esteira de promoção deste projeto é sempre:
+
+```
+dev → hml → prd/main
+```
+
+- **`dev`** — desenvolvimento ativo. É onde entram as melhorias novas (ex.:
+  pedidos de ajuste do Padre), direto ou via branches de feature
+  (`feature/nome-da-coisa`) mescladas nele.
+- **`hml`** — homologação. Recebe, via PR, o que já foi considerado pronto
+  em `dev`, para validação de ponta a ponta antes de liberar.
+- **`prd`** — produção. Recebe, via PR, só o que já foi validado em `hml`.
+  É a versão que efetivamente chega ao Padre/uso real da paróquia.
+- **`main`** — espelho de `prd`. É o branch padrão do repositório no GitHub
+  (o que aparece pra quem visita a página) e deve sempre refletir
+  exatamente o mesmo conteúdo de `prd` — todo avanço em `prd` é replicado
+  em `main` junto.
+
+Regra geral: mudanças sobem sempre nesse sentido (`dev` → `hml` →
+`prd`/`main`), nunca ao contrário. Nenhum commit vai direto pra `prd`/`main`
+sem passar por `hml` antes.
+
 ## Estrutura
 
 ```
