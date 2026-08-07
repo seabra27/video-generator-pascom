@@ -18,8 +18,8 @@ google-genai==2.16.0
 requests==2.34.2
 
 # --- Fase 5: Montagem de vídeo (FFmpeg/MoviePy) ---
-# moviepy==1.0.3
-# pillow==10.4.0
+moviepy==2.2.1
+pillow==11.3.0
 
 # --- Fase 6: App interativo ---
-# streamlit==1.39.0
+streamlit==1.61.1

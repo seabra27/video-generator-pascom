@@ -14,8 +14,8 @@ sincronizadas.
 - [x] Fase 2 — Transcrição local (faster-whisper)
 - [x] Fase 3 — Segmentação + prompt de cena (Google Gemini, tier gratuito)
 - [x] Fase 4 — Geração de imagem (Cloudflare Workers AI / Flux, tier gratuito)
-- [ ] Fase 5 — Montagem de vídeo (FFmpeg/MoviePy)
-- [ ] Fase 6 — App interativo (Streamlit)
+- [x] Fase 5 — Montagem de vídeo (FFmpeg/MoviePy)
+- [x] Fase 6 — App interativo (Streamlit)
 - [ ] Fase 7 — README final
 
 ## Estrutura
@@ -27,7 +27,7 @@ core/               → lógica pura (sem dependência de interface)
 ├── image_generation/    → Cloudflare Workers AI (Flux) → imagens por bloco
 └── assembly/             → FFmpeg/MoviePy → Ken Burns/parallax + cross-fade
 
-app/                → interface Streamlit, orquestra core/
+app/main.py         → interface Streamlit (passo a passo), orquestra core/
 output/             → vídeos finais (.mp4)
 input_examples/     → áudios de exemplo para teste isolado de cada fase
 ```
@@ -50,6 +50,19 @@ py -3.12 -m venv venv
 
 O arquivo `.env` (copiado de `.env.example`) guarda as chaves de API. Veja a
 seção de chaves abaixo antes das Fases 3 e 4.
+
+## Como rodar o app
+
+```powershell
+./venv/Scripts/streamlit run app/main.py
+```
+
+Abre automaticamente no navegador (http://localhost:8501). O app guia o
+processo em 4 passos — enviar o áudio, transcrever, dividir em blocos,
+gerar/escolher as imagens de cada bloco e montar o vídeo final — e cada
+passo só aparece depois que o anterior termina. Erros de chave de API
+ausente/inválida ou cota esgotada aparecem na tela, com instruções de como
+resolver, sem precisar abrir o terminal.
 
 ## Chaves de API
 
@@ -81,6 +94,13 @@ usando o mesmo modelo Flux (Flux 1 Schnell) previsto originalmente.
 5. Cole os dois valores no `.env`: `CLOUDFLARE_API_TOKEN` e
    `CLOUDFLARE_ACCOUNT_ID`.
 
+> Se a geração de imagem falhar com "Credenciais ausentes ou inválidas" mesmo
+> com os dois valores preenchidos corretamente, confira se o token não tem
+> **filtragem de IP** ativada (Cloudflare → **My Profile** → **API Tokens** →
+> editar o token → **Client IP Address Filtering**). Um token restrito a um
+> IP recusa pedidos vindos de qualquer outra rede — remova o filtro ou
+> adicione o IP atual.
+
 > Nota de qualidade: o Flux 1 Schnell é a variante rápida do Flux (a mesma
 > família usada por serviços pagos como o fal.ai), então às vezes gera rostos
 > um pouco mais realistas do que o guia de estilo pede, mesmo com a instrução
@@ -88,5 +108,5 @@ usando o mesmo modelo Flux (Flux 1 Schnell) previsto originalmente.
 > não do código — a Fase 6 (app) tem botão de "regenerar cena" para escolher
 > a melhor variação entre as geradas.
 
-Essas instruções serão repetidas dentro do app quando a fase correspondente
-for implementada.
+Essas instruções aparecem automaticamente dentro do app (Fase 6) sempre que
+uma chave estiver ausente, inválida ou com a cota esgotada.
